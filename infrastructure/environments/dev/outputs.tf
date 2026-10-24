@@ -1,0 +1,1 @@
+output "data_lake_bucket" { value = module.data_lake.bucket_name }
