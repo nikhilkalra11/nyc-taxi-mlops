@@ -69,7 +69,6 @@ def run_training(config_file, data_root, output_root, tasks=("fare", "demand")):
     config = read_config(config_file)
     settings = config["training"]
     seed = int(settings["seed"])
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", settings["mlflow_tracking_uri"]))
     mlflow.set_tracking_uri(
     os.environ.get(
         "MLFLOW_TRACKING_URI",
