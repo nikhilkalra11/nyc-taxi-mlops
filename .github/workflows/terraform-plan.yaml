@@ -1,0 +1,54 @@
+name: Terraform Plan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/environments/dev/**"
+      - ".github/workflows/terraform-plan.yaml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.0"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: taxi-terraform-plan
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform init
+        working-directory: infrastructure/environments/dev
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: Terraform validate
+        working-directory: infrastructure/environments/dev
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: infrastructure/environments/dev
+        run: terraform plan -input=false -no-color
