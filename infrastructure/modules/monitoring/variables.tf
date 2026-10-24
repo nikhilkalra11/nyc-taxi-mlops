@@ -11,27 +11,27 @@ variable "alert_email" {
   type        = string
   default     = ""
 }
-variable "evaluation_periods" { 
-  type = number
-  default = 2 
-  }
-variable "period_seconds" { 
-  type = number
-  default = 60 
-  }
-variable "alb_5xx_threshold" { 
-  type = number
-  default = 5 
-  }
-variable "latency_threshold_seconds" { 
-  type = number
-  default = 2 
-  }
-variable "cpu_threshold_percent" { 
-  type = number
-  default = 80 
-  }
-variable "memory_threshold_percent" { 
-  type = number
-  default = 85 
-  }
+variable "evaluation_periods" {
+  type    = number
+  default = 2
+}
+variable "period_seconds" {
+  type    = number
+  default = 60
+}
+variable "alb_5xx_threshold" {
+  type    = number
+  default = 5
+}
+variable "latency_threshold_seconds" {
+  type    = number
+  default = 2
+}
+variable "cpu_threshold_percent" {
+  type    = number
+  default = 80
+}
+variable "memory_threshold_percent" {
+  type    = number
+  default = 85
+}

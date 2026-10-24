@@ -87,9 +87,9 @@ resource "aws_cloudwatch_metric_alarm" "cpu" {
   threshold           = var.cpu_threshold_percent
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
-  dimensions = { ClusterName = var.ecs_cluster_name, ServiceName = var.ecs_service_name }
-  alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
+  dimensions          = { ClusterName = var.ecs_cluster_name, ServiceName = var.ecs_service_name }
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
 }
 resource "aws_cloudwatch_metric_alarm" "memory" {
   alarm_name          = "${local.prefix}-ecs-memory"
@@ -101,9 +101,9 @@ resource "aws_cloudwatch_metric_alarm" "memory" {
   threshold           = var.memory_threshold_percent
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
-  dimensions = { ClusterName = var.ecs_cluster_name, ServiceName = var.ecs_service_name }
-  alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
+  dimensions          = { ClusterName = var.ecs_cluster_name, ServiceName = var.ecs_service_name }
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
 }
 resource "aws_cloudwatch_metric_alarm" "no_running_tasks" {
   alarm_name          = "${local.prefix}-no-running-tasks"
@@ -115,9 +115,9 @@ resource "aws_cloudwatch_metric_alarm" "no_running_tasks" {
   threshold           = 1
   comparison_operator = "LessThanThreshold"
   treat_missing_data  = "missing"
-  dimensions = { ClusterName = var.ecs_cluster_name, ServiceName = var.ecs_service_name }
-  alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
+  dimensions          = { ClusterName = var.ecs_cluster_name, ServiceName = var.ecs_service_name }
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
 resource "aws_cloudwatch_dashboard" "serving" {
@@ -156,7 +156,7 @@ resource "aws_cloudwatch_dashboard" "serving" {
       { type = "log", x = 0, y = 12, width = 24, height = 6, properties = {
         title = "Recent API errors", region = var.region,
         query = "SOURCE '${var.log_group_name}' | fields @timestamp, @message | filter @message like /ERROR|Traceback|Exception/ | sort @timestamp desc | limit 30",
-        view = "table"
+        view  = "table"
       } }
     ]
   })

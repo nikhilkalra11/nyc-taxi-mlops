@@ -1,6 +1,5 @@
 """FastAPI inference for Milestone 4 joblib bundles."""
 from __future__ import annotations
-from taxi_mlops.observability.telemetry import install_telemetry
 
 import hashlib
 import json
@@ -18,6 +17,8 @@ import pandas as pd
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
+
+from taxi_mlops.observability.telemetry import install_telemetry
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
