@@ -11,6 +11,8 @@ src/taxi_mlops/features/__init__.py
 src/taxi_mlops/features/build.py
 src/taxi_mlops/ingestion/__init__.py
 src/taxi_mlops/ingestion/download.py
+src/taxi_mlops/serving/__init__.py
+src/taxi_mlops/serving/app.py
 src/taxi_mlops/training/__init__.py
 src/taxi_mlops/training/core.py
 src/taxi_mlops/training/sagemaker_entry.py
@@ -19,5 +21,6 @@ src/taxi_mlops/validation/quality.py
 tests/test_features.py
 tests/test_ingestion.py
 tests/test_project.py
+tests/test_serving.py
 tests/test_training.py
 tests/test_validation.py
