@@ -1,0 +1,12 @@
+project:
+  name: nyc-taxi-mlops
+  environment: dev
+
+data:
+  source: nyc_tlc
+  taxi_type: yellow
+  year: 2024
+  month: 1
+
+aws:
+  region: us-east-1
