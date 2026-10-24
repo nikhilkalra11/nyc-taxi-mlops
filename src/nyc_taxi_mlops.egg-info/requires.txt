@@ -1,0 +1,10 @@
+pandas<3,>=2.2
+pyarrow<24,>=17
+requests<3,>=2.32
+PyYAML<7,>=6
+boto3<2,>=1.35
+numpy<3,>=1.26
+
+[dev]
+pytest<10,>=8
+ruff<1,>=0.9

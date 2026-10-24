@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: nyc-taxi-mlops
+Version: 0.1.0
+Requires-Python: <3.14,>=3.11
+Requires-Dist: pandas<3,>=2.2
+Requires-Dist: pyarrow<24,>=17
+Requires-Dist: requests<3,>=2.32
+Requires-Dist: PyYAML<7,>=6
+Requires-Dist: boto3<2,>=1.35
+Requires-Dist: numpy<3,>=1.26
+Provides-Extra: dev
+Requires-Dist: pytest<10,>=8; extra == "dev"
+Requires-Dist: ruff<1,>=0.9; extra == "dev"

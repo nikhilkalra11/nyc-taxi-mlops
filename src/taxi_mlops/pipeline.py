@@ -27,7 +27,9 @@ def sha256(path: Path) -> str:
 
 def run(config_file: Path, output_dir: Path, bucket: str | None = None):
     cfg = yaml.safe_load(config_file.read_text())
-    year, month = int(cfg["year"]), int(cfg["month"])
+    data_cfg = cfg["data"]
+    year = int(data_cfg["year"])
+    month = int(data_cfg["month"])
     partition = f"year={year}/month={month:02d}"
     raw_dir = output_dir / "raw" / partition
     urls = source_urls(year, month)
@@ -35,7 +37,13 @@ def run(config_file: Path, output_dir: Path, bucket: str | None = None):
     zone_file = download(urls["zones"], raw_dir / "taxi_zone_lookup.csv")
     trips = pd.read_parquet(trip_file)
     zones = pd.read_csv(zone_file)
-    clean, quality = clean_trips(trips, year, month, cfg)
+    validation_cfg = cfg["validation"]
+    clean, quality = clean_trips(
+        trips,
+        year,
+        month,
+        validation_cfg,
+    )
     artifacts = {"raw": [trip_file, zone_file]}
     clean_path = output_dir / "processed" / partition / "trips_clean.parquet"
     clean_path.parent.mkdir(parents=True, exist_ok=True)
