@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "ruff>=0.9,<1"]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1","httpx2"]
 aws-training = ["sagemaker>=2.220,<3"]
 
 [tool.setuptools.packages.find]
