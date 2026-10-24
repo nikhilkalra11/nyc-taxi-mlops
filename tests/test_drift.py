@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scripts.drift_report import psi
+from taxi_mlops.observability.drift import psi
 
 
 def test_psi_same_population_near_zero():

@@ -10,25 +10,9 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-
-def psi(reference: pd.Series, current: pd.Series, bins: int = 10) -> float:
-    ref = pd.to_numeric(reference, errors="coerce").dropna().to_numpy(dtype=float)
-    cur = pd.to_numeric(current, errors="coerce").dropna().to_numpy(dtype=float)
-    ref, cur = ref[np.isfinite(ref)], cur[np.isfinite(cur)]
-    if len(ref) < 20 or len(cur) < 20:
-        raise ValueError("Need at least 20 finite observations in each sample")
-    edges = np.unique(np.quantile(ref, np.linspace(0, 1, bins + 1)))
-    if len(edges) < 3:
-        raise ValueError("Reference feature has insufficient distinct values")
-    edges[0], edges[-1] = -np.inf, np.inf
-    a = np.histogram(ref, bins=edges)[0].astype(float)
-    b = np.histogram(cur, bins=edges)[0].astype(float)
-    a = np.maximum(a / a.sum(), 1e-6)
-    b = np.maximum(b / b.sum(), 1e-6)
-    return float(np.sum((b - a) * np.log(b / a)))
+from taxi_mlops.observability.drift import psi
 
 
 def main() -> None:
