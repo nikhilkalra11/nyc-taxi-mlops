@@ -31,8 +31,12 @@ def demand_features(trips: pd.DataFrame, year: int, month: int,
     for lag in (1, 24, 168):
         result[f"lag_{lag}"] = groups.shift(lag)
     for window in (24, 168):
-        result[f"rolling_mean_{window}"] = result.groupby("PULocationID", sort=False)["demand"].transform(
-            lambda x: x.shift(1).rolling(window, min_periods=window).mean()
+        result[f"rolling_mean_{window}"] = result.groupby(
+            "PULocationID", sort=False
+        )["demand"].transform(
+            lambda x, window=window: x.shift(1)
+            .rolling(window, min_periods=window)
+            .mean()
         )
     result["hour_of_day"] = result.hour.dt.hour
     result["day_of_week"] = result.hour.dt.dayofweek

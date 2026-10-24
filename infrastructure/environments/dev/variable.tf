@@ -1,4 +1,4 @@
-variable "project_name" { 
-    type = string 
-    default = "nyc-taxi-mlops" 
+variable "project_name" {
+  type    = string
+  default = "nyc-taxi-mlops"
 }

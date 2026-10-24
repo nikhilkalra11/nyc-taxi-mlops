@@ -31,7 +31,7 @@ def clean_trips(df: pd.DataFrame, year: int, month: int, config: dict):
     )
     cleaned = result.loc[mask].copy()
     cleaned["duration_minutes"] = duration.loc[mask]
-    report = {"input_rows": int(input_rows), "valid_rows": int(len(cleaned)),
+    report = {"input_rows": int(input_rows), "valid_rows": len(cleaned),
               "rejected_rows": int(input_rows - len(cleaned)),
               "valid_ratio": round(len(cleaned) / input_rows, 5) if input_rows else 0}
     if cleaned.empty:

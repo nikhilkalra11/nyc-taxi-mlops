@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import requests
 
 BASE = "https://d37ci6vzurychx.cloudfront.net"
