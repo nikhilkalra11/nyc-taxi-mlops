@@ -1,5 +1,6 @@
 """FastAPI inference for Milestone 4 joblib bundles."""
 from __future__ import annotations
+from taxi_mlops.observability.telemetry import install_telemetry
 
 import hashlib
 import json
@@ -121,6 +122,7 @@ def make_app(store: ModelStore | None = None, load_on_start: bool = True) -> Fas
         yield
 
     app = FastAPI(title="NYC Taxi Prediction API", version="0.5.0", lifespan=lifespan)
+    install_telemetry(app)
 
     @app.get("/health/live")
     def live():

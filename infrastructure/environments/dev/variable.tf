@@ -15,3 +15,10 @@ variable "enable_api_service" {
   type    = bool
   default = false
 }
+
+variable "monitoring_alert_email" {
+  description = "Optional email to subscribe to monitoring alarms; confirm SNS email to activate."
+  type        = string
+  default     = ""
+}
+

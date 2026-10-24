@@ -136,7 +136,13 @@ resource "aws_iam_role_policy" "models" {
   role   = aws_iam_role.task.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [{ Effect = "Allow", Action = ["s3:GetObject"], Resource = "arn:aws:s3:::${var.data_bucket}/${trim(var.model_prefix, "/")}/*" }] })
 }
-resource "aws_ecs_cluster" "api" { name = "${local.prefix}-cluster" }
+resource "aws_ecs_cluster" "api" { 
+  name = "${local.prefix}-cluster"
+    setting {
+    name  = "containerInsights"
+    value = "enabled"
+    } 
+  }
 resource "aws_ecs_task_definition" "api" {
   family                   = "${local.prefix}-api"
   network_mode             = "awsvpc"

@@ -16,5 +16,6 @@ Requires-Dist: joblib<2,>=1.4
 Provides-Extra: dev
 Requires-Dist: pytest<10,>=8; extra == "dev"
 Requires-Dist: ruff<1,>=0.9; extra == "dev"
+Requires-Dist: httpx2; extra == "dev"
 Provides-Extra: aws-training
 Requires-Dist: sagemaker<3,>=2.220; extra == "aws-training"
