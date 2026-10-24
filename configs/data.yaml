@@ -8,5 +8,12 @@ data:
   year: 2024
   month: 1
 
+validation:
+  min_distance: 0.1
+  max_distance: 100.0
+  max_duration_minutes: 180
+  min_fare: 0.0
+  max_fare: 500.0
+
 aws:
   region: us-east-1
