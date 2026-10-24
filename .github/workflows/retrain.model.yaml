@@ -1,0 +1,128 @@
+
+name: Retrain NYC Taxi Models
+
+on:
+  workflow_dispatch:
+    inputs:
+      feature_prefix:
+        description: "S3 prefix containing fare/ and demand/ feature datasets"
+        required: true
+        type: string
+      candidate_id:
+        description: "Unique candidate version identifier"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: nyc-taxi-retraining
+  cancel-in-progress: false
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      AWS_REGION: us-east-1
+      DATA_BUCKET: ${{ vars.TAXI_DATA_BUCKET }}
+      AWS_ROLE_ARN: ${{ vars.AWS_RETRAIN_ROLE_ARN }}
+      MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run tests
+        run: |
+          python -m pytest -q tests
+          python -m ruff check src tests scripts
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download feature datasets
+        env:
+          FEATURE_PREFIX: ${{ inputs.feature_prefix }}
+        run: |
+          mkdir -p data/features
+
+          aws s3 sync \
+            "s3://${DATA_BUCKET}/${FEATURE_PREFIX%/}/" \
+            data/features/ \
+            --only-show-errors
+
+          find data/features -type f | sort
+
+      - name: Train models
+        run: |
+          python scripts/train_models.py \
+            --config configs/training.yaml \
+            --data-root data/features \
+            --output artifacts/models \
+            --task all
+
+      - name: Verify model artifacts
+        run: |
+          test -s artifacts/models/fare/model.joblib
+          test -s artifacts/models/fare/metrics.json
+          test -s artifacts/models/demand/model.joblib
+          test -s artifacts/models/demand/metrics.json
+          test -s artifacts/models/summary.json
+
+          python -m json.tool artifacts/models/summary.json
+
+      - name: Upload immutable candidate to S3
+        env:
+          CANDIDATE_ID: ${{ inputs.candidate_id }}
+        run: |
+          if [[ ! "$CANDIDATE_ID" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$ ]]; then
+            echo "Invalid candidate_id"
+            exit 1
+          fi
+
+          PREFIX="models/candidates/${CANDIDATE_ID}"
+
+          if aws s3api head-object \
+            --bucket "$DATA_BUCKET" \
+            --key "$PREFIX/summary.json" >/dev/null 2>&1; then
+            echo "Candidate version already exists: $PREFIX"
+            exit 1
+          fi
+
+          aws s3 cp artifacts/models/ \
+            "s3://${DATA_BUCKET}/${PREFIX}/" \
+            --recursive \
+            --only-show-errors
+
+          echo "Candidate uploaded to:"
+          echo "s3://${DATA_BUCKET}/${PREFIX}/"
+
+      - name: Upload training evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retraining-evidence-${{ github.run_id }}
+          path: |
+            artifacts/models/**/metrics.json
+            artifacts/models/summary.json
+            mlflow.db
+          if-no-files-found: warn
+          retention-days: 30
