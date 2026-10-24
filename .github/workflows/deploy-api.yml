@@ -1,0 +1,83 @@
+name: Deploy NYC Taxi API
+on:
+  workflow_dispatch:
+    inputs:
+      model_prefix:
+        description: "S3 prefix containing fare/ and demand/ model artifacts"
+        required: true
+        default: "training/local-run-001"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: taxi-api-dev
+  cancel-in-progress: false
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: us-east-1
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]' fastapi 'uvicorn[standard]' httpx
+      - name: Tests and lint
+        run: |
+          python -m pytest -q tests
+          python -m ruff check src tests scripts
+      - name: AWS credentials (existing OIDC role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_APPLY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Resolve AWS account
+        id: aws
+        run: echo "account=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: ECR login
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Set image URI
+        id: image
+        run: |
+          REPO="${{ steps.aws.outputs.account }}.dkr.ecr.${AWS_REGION}.amazonaws.com/nyc-taxi-mlops-dev-api"
+          echo "uri=${REPO}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - name: Build and push ARM64 image
+        run: |
+          docker buildx build --platform linux/arm64 --push \
+            -f deploy/Dockerfile \
+            -t "${{ steps.image.outputs.uri }}" .
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+      - name: Terraform deploy
+        working-directory: infrastructure/environments/dev
+        env:
+          TF_VAR_api_image_tag: ${{ github.sha }}
+          TF_VAR_enable_api_service: "true"
+          TF_VAR_model_prefix: ${{ inputs.model_prefix }}
+        run: |
+          terraform init -input=false
+          terraform fmt -recursive
+          terraform validate
+          terraform plan -input=false -out=deploy.tfplan
+          terraform apply -input=false deploy.tfplan
+      - name: Wait for service stability
+        working-directory: infrastructure/environments/dev
+        run: |
+          CLUSTER=$(terraform output -raw api_ecs_cluster_name)
+          SERVICE=$(terraform output -raw api_ecs_service_name)
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          URL=$(terraform output -raw api_url)
+          curl --fail --retry 12 --retry-delay 10 --retry-connrefused "$URL/health/ready"
+          echo "Deployed API: $URL"
