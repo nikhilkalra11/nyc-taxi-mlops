@@ -18,6 +18,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from taxi_mlops.observability.telemetry import install_telemetry
+
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 TASKS = ("fare", "demand")
@@ -121,6 +123,7 @@ def make_app(store: ModelStore | None = None, load_on_start: bool = True) -> Fas
         yield
 
     app = FastAPI(title="NYC Taxi Prediction API", version="0.5.0", lifespan=lifespan)
+    install_telemetry(app)
 
     @app.get("/health/live")
     def live():

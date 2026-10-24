@@ -4,3 +4,6 @@ output "api_ecr_repository_name" { value = module.serving.ecr_repository_name }
 output "api_url" { value = module.serving.api_url }
 output "api_ecs_cluster_name" { value = module.serving.ecs_cluster_name }
 output "api_ecs_service_name" { value = module.serving.ecs_service_name }
+output "monitoring_dashboard_name" { value = module.monitoring.dashboard_name }
+output "monitoring_sns_topic_arn" { value = module.monitoring.sns_topic_arn }
+output "monitoring_alarm_names" { value = module.monitoring.alarm_names }

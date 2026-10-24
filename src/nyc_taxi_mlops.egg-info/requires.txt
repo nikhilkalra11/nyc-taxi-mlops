@@ -16,3 +16,4 @@ sagemaker<3,>=2.220
 [dev]
 pytest<10,>=8
 ruff<1,>=0.9
+httpx2
