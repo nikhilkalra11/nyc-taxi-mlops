@@ -161,3 +161,40 @@ resource "aws_iam_role_policy" "apply_discovery" {
   role   = aws_iam_role.terraform_apply.id
   policy = data.aws_iam_policy_document.terraform_discovery.json
 }
+
+data "aws_iam_policy_document" "data_lake_management" {
+  statement {
+    sid = "ManageDataLakeBucket"
+
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+      "s3:GetBucketVersioning",
+      "s3:PutBucketVersioning",
+      "s3:GetEncryptionConfiguration",
+      "s3:PutEncryptionConfiguration",
+      "s3:GetBucketPublicAccessBlock",
+      "s3:PutBucketPublicAccessBlock",
+      "s3:GetBucketOwnershipControls",
+      "s3:PutBucketOwnershipControls",
+      "s3:GetBucketPolicy",
+      "s3:PutBucketPolicy",
+      "s3:DeleteBucketPolicy",
+      "s3:GetBucketTagging",
+      "s3:PutBucketTagging",
+      "s3:ListBucketVersions"
+    ]
+
+    resources = [
+      "arn:aws:s3:::nyc-taxi-mlops-data-dev-${data.aws_caller_identity.current.account_id}-us-east-1"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "apply_data_lake" {
+  name   = "terraform-data-lake-management"
+  role   = aws_iam_role.terraform_apply.id
+  policy = data.aws_iam_policy_document.data_lake_management.json
+}
