@@ -8,6 +8,13 @@ Requires-Dist: requests<3,>=2.32
 Requires-Dist: PyYAML<7,>=6
 Requires-Dist: boto3<2,>=1.35
 Requires-Dist: numpy<3,>=1.26
+Requires-Dist: scikit-learn<2,>=1.5
+Requires-Dist: lightgbm<5,>=4.3
+Requires-Dist: xgboost<4,>=2.1
+Requires-Dist: mlflow<4,>=2.18
+Requires-Dist: joblib<2,>=1.4
 Provides-Extra: dev
 Requires-Dist: pytest<10,>=8; extra == "dev"
 Requires-Dist: ruff<1,>=0.9; extra == "dev"
+Provides-Extra: aws-training
+Requires-Dist: sagemaker<3,>=2.220; extra == "aws-training"
