@@ -1,15 +1,15 @@
-
 name: Retrain NYC Taxi Models
 
 on:
   workflow_dispatch:
     inputs:
       feature_prefix:
-        description: "S3 prefix containing fare/ and demand/ feature datasets"
+        description: "S3 prefix containing fare/ and demand/ feature datasets (use: features)"
         required: true
+        default: features
         type: string
       candidate_id:
-        description: "Unique candidate version identifier"
+        description: "New unique candidate ID, e.g. retrain-20261025-002"
         required: true
         type: string
 
@@ -25,7 +25,6 @@ jobs:
   retrain:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
     env:
       AWS_REGION: us-east-1
       DATA_BUCKET: ${{ vars.TAXI_DATA_BUCKET }}
@@ -46,62 +45,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
+          python -c "import boto3; print('boto3 available')"
 
-      - name: Run tests
+      - name: Run tests and lint
         run: |
           python -m pytest -q tests
           python -m ruff check src tests scripts
-
-      - name: Diagnose GitHub OIDC
-        shell: bash
-        run: |
-          python - <<'PY'
-          import os
-          import json
-          import base64
-          import urllib.parse
-          import urllib.request
-
-          print("Repository:", os.environ.get("GITHUB_REPOSITORY"))
-          print("Branch:", os.environ.get("GITHUB_REF"))
-          print("Event:", os.environ.get("GITHUB_EVENT_NAME"))
-
-          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
-          separator = "&" if "?" in url else "?"
-          url += separator + urllib.parse.urlencode(
-              {"audience": "sts.amazonaws.com"}
-          )
-
-          request = urllib.request.Request(
-              url,
-              headers={
-                  "Authorization": (
-                      "Bearer "
-                      + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
-                  )
-              },
-          )
-
-          with urllib.request.urlopen(request) as response:
-              token = json.load(response)["value"]
-
-          encoded_payload = token.split(".")[1]
-          encoded_payload += "=" * (-len(encoded_payload) % 4)
-          claims = json.loads(
-              base64.urlsafe_b64decode(encoded_payload)
-          )
-
-          for key in (
-              "iss",
-              "aud",
-              "sub",
-              "repository",
-              "ref",
-              "event_name",
-              "environment",
-          ):
-              print(f"{key}: {claims.get(key)}")
-          PY
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
@@ -110,18 +59,27 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: taxi-nyc-retrain
 
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
       - name: Download feature datasets
+        shell: bash
         env:
           FEATURE_PREFIX: ${{ inputs.feature_prefix }}
         run: |
+          set -euo pipefail
+          if [[ "$FEATURE_PREFIX" != "features" ]]; then
+            echo "::error::This workflow currently supports feature_prefix=features only"
+            exit 1
+          fi
           mkdir -p data/features
-
-          aws s3 sync \
-            "s3://${DATA_BUCKET}/${FEATURE_PREFIX%/}/" \
-            data/features/ \
-            --only-show-errors
-
-          find data/features -type f | sort
+          aws s3 sync "s3://${DATA_BUCKET}/${FEATURE_PREFIX}/" data/features/ --only-show-errors
+          for task in fare demand; do
+            for split in train validation test; do
+              file="data/features/${task}/year=2024/month=01/${split}.parquet"
+              test -s "$file" || { echo "::error::Missing $file"; exit 1; }
+            done
+          done
 
       - name: Train models
         run: |
@@ -138,34 +96,38 @@ jobs:
           test -s artifacts/models/demand/model.joblib
           test -s artifacts/models/demand/metrics.json
           test -s artifacts/models/summary.json
+          python -m json.tool artifacts/models/summary.json > /dev/null
 
-          python -m json.tool artifacts/models/summary.json
-
-      - name: Upload immutable candidate to S3
+      - name: Upload candidate artifacts to S3
+        shell: bash
         env:
           CANDIDATE_ID: ${{ inputs.candidate_id }}
         run: |
-          if [[ ! "$CANDIDATE_ID" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$ ]]; then
-            echo "Invalid candidate_id"
+          set -euo pipefail
+          if [[ ! "$CANDIDATE_ID" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$ ]] || [[ "$CANDIDATE_ID" == "." ]] || [[ "$CANDIDATE_ID" == ".." ]]; then
+            echo "::error::Invalid candidate_id"
             exit 1
           fi
-
           PREFIX="models/candidates/${CANDIDATE_ID}"
-
-          if aws s3api head-object \
-            --bucket "$DATA_BUCKET" \
-            --key "$PREFIX/summary.json" >/dev/null 2>&1; then
-            echo "Candidate version already exists: $PREFIX"
+          if aws s3api head-object --bucket "$DATA_BUCKET" --key "$PREFIX/summary.json" >/dev/null 2>&1; then
+            echo "::error::Candidate already exists: $PREFIX"
             exit 1
           fi
+          aws s3 cp artifacts/models/ "s3://${DATA_BUCKET}/${PREFIX}/" --recursive --only-show-errors
 
-          aws s3 cp artifacts/models/ \
-            "s3://${DATA_BUCKET}/${PREFIX}/" \
-            --recursive \
-            --only-show-errors
-
-          echo "Candidate uploaded to:"
-          echo "s3://${DATA_BUCKET}/${PREFIX}/"
+      - name: Register candidate version
+        env:
+          CANDIDATE_ID: ${{ inputs.candidate_id }}
+          FEATURE_PREFIX: ${{ inputs.feature_prefix }}
+        run: |
+          python scripts/register_model_version.py \
+            --bucket "$DATA_BUCKET" \
+            --candidate-id "$CANDIDATE_ID" \
+            --artifact-root artifacts/models \
+            --feature-prefix "$FEATURE_PREFIX" \
+            --github-run-id "$GITHUB_RUN_ID" \
+            --git-sha "$GITHUB_SHA" \
+            --output artifacts/registry/version.json
 
       - name: Upload training evidence
         if: always()
@@ -175,6 +137,7 @@ jobs:
           path: |
             artifacts/models/**/metrics.json
             artifacts/models/summary.json
+            artifacts/registry/version.json
             mlflow.db
           if-no-files-found: warn
           retention-days: 30
