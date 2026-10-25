@@ -41,7 +41,7 @@ def _score(model_bundle, frame):
     target = model_bundle["target"]
     if not isinstance(features, list) or not features or not isinstance(target, str):
         raise ComparisonError("Invalid feature/target metadata")
-    missing = set([*features, target]) - set(frame.columns)
+    missing = {*features, target} - set(frame.columns)
     if missing:
         raise ComparisonError(f"Missing evaluation columns: {sorted(missing)}")
     subset = frame[[*features, target]].replace([np.inf, -np.inf], np.nan).dropna()
