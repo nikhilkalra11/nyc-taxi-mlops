@@ -22,3 +22,13 @@ models/
 crash.log
 *.tfvars
 *.tfvars.json
+
+# MLflow local tracking
+mlflow.db
+mlflow.db-shm
+mlflow.db-wal
+mlartifacts/
+mlruns/
+
+# Generated training artifacts
+artifacts/
