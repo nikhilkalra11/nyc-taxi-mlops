@@ -1,0 +1,76 @@
+name: Evaluate Registered Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_id:
+        description: "Registered candidate ID"
+        required: true
+        type: string
+      incumbent_prefix:
+        description: "EXACT S3 model prefix loaded by current ECS task (not a guess)"
+        required: true
+        type: string
+      incumbent_task_definition:
+        description: "Current ECS task definition ARN/revision for audit"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      AWS_REGION: us-east-1
+      DATA_BUCKET: ${{ vars.TAXI_DATA_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Test and lint
+        run: |
+          python -m pytest -q tests/test_model_comparison.py
+          python -m ruff check src/taxi_mlops/lifecycle/comparison.py scripts/compare_candidate.py tests/test_model_comparison.py
+      - name: AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_RETRAIN_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: taxi-nyc-evaluate
+      - name: Download common evaluation data
+        run: |
+          set -euo pipefail
+          for task in fare demand; do
+            key="features/${task}/year=2024/month=01/test.parquet"
+            mkdir -p "data/features/${task}/year=2024/month=01"
+            aws s3 cp "s3://${DATA_BUCKET}/${key}" "data/${key}" --only-show-errors
+          done
+      - name: Compare candidate and incumbent
+        env:
+          CANDIDATE_ID: ${{ inputs.candidate_id }}
+          INCUMBENT_PREFIX: ${{ inputs.incumbent_prefix }}
+          INCUMBENT_TASK_DEFINITION: ${{ inputs.incumbent_task_definition }}
+        run: |
+          python scripts/compare_candidate.py \
+            --bucket "$DATA_BUCKET" \
+            --candidate-id "$CANDIDATE_ID" \
+            --incumbent-bucket "$DATA_BUCKET" \
+            --incumbent-prefix "$INCUMBENT_PREFIX" \
+            --incumbent-task-definition "$INCUMBENT_TASK_DEFINITION" \
+            --data-root data/features \
+            --output artifacts/evaluations/report.json
+      - name: Upload evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-evaluation-${{ github.run_id }}
+          path: artifacts/evaluations/report.json
+          if-no-files-found: warn
