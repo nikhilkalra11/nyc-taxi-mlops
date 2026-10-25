@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GitHubProtectedApprovalEnvironment",
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::951526630023:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:nikhilkalra11@36065455/nyc-taxi-mlops@1431988300:environment:model-production-approval"
+        }
+      }
+    }
+  ]
+}
