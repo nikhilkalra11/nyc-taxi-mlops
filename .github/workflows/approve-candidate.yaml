@@ -1,0 +1,72 @@
+name: Approve Model Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_id:
+        description: "Registered candidate with a PASS evaluation report"
+        required: true
+        type: string
+      ecs_cluster:
+        description: "Live ECS cluster name"
+        required: true
+        type: string
+      ecs_service:
+        description: "Live ECS service name"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: model-approval
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: model-production-approval
+    env:
+      DATA_BUCKET: ${{ vars.TAXI_DATA_BUCKET }}
+      AWS_REGION: us-east-1
+      CANDIDATE_ID: ${{ inputs.candidate_id }}
+      ECS_CLUSTER: ${{ inputs.ecs_cluster }}
+      ECS_SERVICE: ${{ inputs.ecs_service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install project dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Unit tests and lint
+        run: |
+          python -m pytest -q tests/test_model_promotion.py
+          python -m ruff check src/taxi_mlops/lifecycle/promotion.py scripts/approve_candidate.py tests/test_model_promotion.py
+      - name: Configure AWS OIDC credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_APPROVAL_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: taxi-nyc-approval
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+      - name: Create guarded approval record
+        run: |
+          python scripts/approve_candidate.py \
+            --bucket "$DATA_BUCKET" \
+            --candidate-id "$CANDIDATE_ID" \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --output artifacts/approvals/approval.json
+      - name: Upload approval evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-approval-${{ github.run_id }}
+          path: artifacts/approvals/approval.json
+          if-no-files-found: warn

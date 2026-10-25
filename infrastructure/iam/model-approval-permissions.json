@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadRegistryAndEvaluationEvidence",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::nyc-taxi-mlops-data-dev-951526630023-us-east-1/models/registry/versions/*",
+        "arn:aws:s3:::nyc-taxi-mlops-data-dev-951526630023-us-east-1/models/candidates/*",
+        "arn:aws:s3:::nyc-taxi-mlops-data-dev-951526630023-us-east-1/models/evaluations/*"
+      ]
+    },
+    {
+      "Sid": "WriteApprovalEvidenceOnly",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::nyc-taxi-mlops-data-dev-951526630023-us-east-1/models/approvals/*"
+    },
+    {
+      "Sid": "DescribeCurrentEcsIncumbent",
+      "Effect": "Allow",
+      "Action": ["ecs:DescribeServices", "ecs:DescribeTaskDefinition"],
+      "Resource": "*"
+    }
+  ]
+}
